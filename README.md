@@ -4,6 +4,14 @@ Terminal SoundCloud app with browsing, playback, Discord Rich Presence, and Last
 
 The app is built with Textual, uses `yt-dlp` for SoundCloud metadata and streams, and plays audio through `ffplay`.
 
+## Preview
+
+
+
+https://github.com/user-attachments/assets/07c6b352-bde5-4b34-99c4-0944f92e5ebb
+
+
+
 ## Features
 
 - Browse SoundCloud charts, search results, likes, playlists, and user tracks
