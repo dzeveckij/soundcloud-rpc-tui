@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soundcloud-rpc-tui"
+version = "0.1.0"
+description = "Terminal SoundCloud app with browsing, playback, and Discord Rich Presence"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31",
+    "textual>=0.86",
+    "yt-dlp>=2024.8.6",
+    "pypresence>=4.3",
+]
+
+[project.scripts]
+soundcloud-rpc-tui = "app:main"
+
+[tool.setuptools]
+py-modules = ["app", "core", "integrations", "soundcloud"]

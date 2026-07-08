@@ -1,0 +1,4 @@
+requests>=2.31
+textual>=0.86
+yt-dlp>=2024.8.6
+pypresence>=4.3
