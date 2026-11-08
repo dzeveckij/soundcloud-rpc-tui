@@ -1,42 +1,35 @@
 # SoundCloud TUI
 
-Terminal SoundCloud app with browsing, playback, Discord Rich Presence, and Last.fm scrobbling.
+A SoundCloud client for your terminal. Search, play, like, repost, follow, and manage playlists, with your track's waveform as the progress bar and your listening shown in Discord.
 
-The app is built with Textual, uses `yt-dlp` for SoundCloud metadata and streams, and plays audio through `ffplay`.
+Built with [Textual](https://textual.textualize.io/). Plays audio through `mpv` or `ffplay`.
 
 ## Preview
 
-
-
-https://github.com/user-attachments/assets/07c6b352-bde5-4b34-99c4-0944f92e5ebb
-
-
+![SoundCloud TUI playing a track from search results, with a sidebar, cover art, and the track's waveform as the progress bar](assets/preview.png)
 
 ## Features
 
-- Browse SoundCloud charts, search results, likes, playlists, and user tracks
-- Paste a SoundCloud track or playlist URL to play or browse it
-- Play tracks from the terminal with pause, resume, queue advance, and repeat-one
-- Show the current track in Discord Rich Presence
-- Optionally scrobble and update now-playing status on Last.fm
-- Use cookies from a `cookies.txt` file or a supported browser for private or account-specific SoundCloud content
-- Persist settings under the XDG config directory
+- **Search as you type**, filtered by tracks, playlists, albums, or people. Paste a SoundCloud link to open it.
+- **Your account:** like tracks and playlists, repost, follow people, and create and edit playlists, including private ones.
+- **Your library:** feed, likes, playlists, albums, your tracks, following, and listening history.
+- **Discover:** trending tracks and SoundCloud's curated and genre playlists.
+- **Playback:** seek by clicking the waveform, volume, shuffle, repeat, an Up next queue, and related tracks.
+- **Discord Rich Presence** with the track, artist, cover art, and time remaining.
 
 ## Requirements
 
 - Python 3.10 or newer
-- `ffplay`, usually provided by FFmpeg
-- SoundCloud access through public metadata, browser cookies, or a `cookies.txt` export
-
-Install `ffplay` with your system package manager. For example:
+- `mpv` (recommended) or `ffplay` from FFmpeg
 
 ```bash
-sudo apt install ffmpeg
+brew install mpv         # macOS
+sudo apt install mpv     # Debian and Ubuntu
 ```
 
-## Install
+`ffplay` works too, but it restarts the stream when you seek or change the volume, which causes a short gap. `mpv` does both instantly.
 
-From this repository:
+## Install
 
 ```bash
 python -m venv .venv
@@ -44,107 +37,107 @@ source .venv/bin/activate
 python -m pip install -e .
 ```
 
-You can also install the dependencies directly:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
 ## Run
-
-After an editable install:
 
 ```bash
 soundcloud-rpc-tui
 ```
 
-Or run the app module directly from the checkout:
+Or run `python app.py` from the checkout.
 
-```bash
-python app.py
-```
+## Sign in
+
+Press `L`. The app uses the SoundCloud session in your browser, so your password never reaches it.
+
+1. Sign in on soundcloud.com, if you haven't already.
+2. Choose that browser in the app and select **Import session**.
+
+Firefox, Chrome, Brave, Edge, Chromium, Vivaldi, Opera, and Safari are supported. On macOS, Chromium-based browsers ask for Keychain access, and Safari needs Full Disk Access for your terminal. For any other browser, paste the `oauth_token` cookie from its developer tools, or the path to a `cookies.txt` export. Add the `oauth_refresh_token` cookie to stay signed in longer.
+
+**Staying signed in.** SoundCloud sessions renew about every hour using a single-use refresh token that your browser and this app share. The app reads your browser again first, which doesn't affect the browser at all. If the browser's session has also expired, the app renews it, and your browser may then ask you to sign in again the next time you open SoundCloud.
+
+**Your tokens** are saved in `~/.config/soundcloud-rpc-tui/auth.json`, readable only by your user, and are only ever sent to SoundCloud. **Sign out** in the `L` dialog deletes that file.
+
+Not signing in? Set a public profile in settings (`s`) to browse its likes, playlists, and tracks. Search, Trending, Discover, and playback work without an account.
 
 ## Controls
 
+Press `?` in the app for this list. Most on-screen controls can also be clicked.
+
+### Browse
+
 | Key | Action |
 | --- | --- |
-| `/` | Search or enter a SoundCloud URL |
-| `c` | Load charts |
-| `l` | Load likes |
-| `p` | Load playlists |
-| `t` | Load your tracks |
-| `g` | Load recommendations |
-| `enter` | Play the selected item, or open a selected playlist |
-| `space` | Pause or resume playback |
-| `y` | Toggle repeat-one |
-| `o` | Open the current track in the browser when browser opening is enabled |
-| `s` | Open settings |
-| `r` | Refresh the current view |
+| `/` | Search, or paste a SoundCloud link |
+| `enter` | Play a track, or open a playlist or person |
+| `backspace` | Go back |
+| `[` `]` | Change the search filter |
+| `r` | Refresh this view |
+| `j` `k` | Move down or up |
+| `D` `c` `w` | Discover, Trending, Feed |
+| `l` `p` `A` | Likes, Playlists, Albums |
+| `t` `P` `h` | Your tracks, Following, History |
+| `v` `g` | Up next, Related to this track |
+
+### Playback
+
+| Key | Action |
+| --- | --- |
+| `space` | Play or pause |
+| `n` `b` | Next, Previous |
+| `←` `→` | Back or forward 10 seconds |
+| `-` `+` | Volume down or up |
+| `y` | Repeat: off, all, one |
+| `z` | Shuffle |
+| `e` | Add the selected track to Up next |
+
+### Your account
+
+| Key | Action |
+| --- | --- |
+| `f` | Like the selected row, or follow a person |
+| `F` | Like the track that's playing |
+| `a` | Add to a playlist |
+| `R` | Repost, or undo a repost |
+| `d` | Remove from Up next or your playlist, or delete your playlist |
+| `L` | Sign in or sign out |
+
+### Other
+
+| Key | Action |
+| --- | --- |
+| `i` | Details about the selected row |
+| `o` `u` | Open the selected row or its artist in your browser |
+| `s` | Settings |
 | `q` | Quit |
 
 ## Settings
 
-Open settings with `s`. Settings are saved to:
+Settings are saved to `~/.config/soundcloud-rpc-tui/settings.json`, or under `$XDG_CONFIG_HOME` if it's set.
 
-```text
-~/.config/soundcloud-rpc-tui/settings.json
-```
-
-If `XDG_CONFIG_HOME` is set, the file is saved under:
-
-```text
-$XDG_CONFIG_HOME/soundcloud-rpc-tui/settings.json
-```
-
-Useful settings include:
-
-- SoundCloud username or profile URL for likes, playlists, and tracks
-- `cookies.txt` path for authenticated SoundCloud requests
-- Browser cookie source such as `firefox`, `chrome`, or `chromium`
-- Charts region
-- Default search
-- Discord Rich Presence toggles
-- Last.fm API credentials and session key
-- Theme
-- Track title parser
-- Open browser on play
-
-## SoundCloud Login
-
-Public search and charts can work without login. For private, liked, or account-specific content, configure one of:
-
-- A `cookies.txt` file path
-- Browser cookies, for example `firefox`
-
-The app passes these settings to `yt-dlp`.
-
-## Discord Rich Presence
-
-Discord Rich Presence is enabled by default. It requires Discord to be running locally and accepting RPC connections. If Discord is not available, playback still works and the status panel shows the integration error.
-
-## Last.fm
-
-To use Last.fm scrobbling:
-
-1. Create a Last.fm API application.
-2. Enter the API key and shared secret in settings.
-3. Use the settings screen to open the auth URL.
-4. Copy the returned token into the token field and save.
-
-The app updates now playing while a track is playing and scrobbles after enough playback time has elapsed.
+Played tracks are added to your SoundCloud listening history, as they are on the website. Turn this off in settings if you'd rather they weren't.
 
 ## Troubleshooting
 
-If playback fails with `install ffplay`, install FFmpeg and make sure `ffplay` is on `PATH`.
+**No sound, or "No audio player found."** Install `mpv` or FFmpeg, and make sure it's on your `PATH`.
 
-If SoundCloud browsing fails, update `yt-dlp`:
+**"That browser isn't signed in to SoundCloud."** Sign in on soundcloud.com in that browser, then import again. If you use several profiles, the app checks each one, starting with the most recently used.
+
+**"Your SoundCloud session expired."** Press `L` and import your session again.
+
+**A track plays for only 30 seconds.** It's a SoundCloud Go+ track and you're hearing its preview. The player labels these.
+
+**"SoundCloud isn't accepting this app right now."** The app couldn't get an API key from SoundCloud. Wait a while, then try again. Once it has a working key, it reuses it without contacting the website.
+
+**Discord doesn't update.** Make sure Discord's desktop app is running. Settings (`s`) shows the connection status.
+
+## Good to know
+
+This app uses `api-v2.soundcloud.com`, the private API behind SoundCloud's website, because it's the only one with search, likes, and streaming for ordinary accounts. SoundCloud can change it at any time, and account actions here affect your real account.
+
+## Development
 
 ```bash
-python -m pip install -U yt-dlp
+python -m pip install -e '.[dev]'
+python -m pytest
 ```
-
-If likes, playlists, or user tracks fail, set your SoundCloud username or profile URL in settings. For content that requires login, configure cookies.
-
-If Discord status does not update, check that Discord is running locally and that Rich Presence is enabled in settings.
-
-If Last.fm does not update, confirm that Last.fm is enabled and all three credentials are saved: API key, API secret, and session key.
