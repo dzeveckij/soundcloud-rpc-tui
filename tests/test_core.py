@@ -2,7 +2,7 @@ import json
 import random
 import stat
 
-from core import Engagement, PlayQueue, Settings, SettingsStore, SoundCloudItem, atomic_write, compact_count, normalize_track_info, seconds_to_time
+from soundcloud_rpc_tui.core import Engagement, PlayQueue, Settings, SettingsStore, SoundCloudItem, atomic_write, compact_count, normalize_track_info, seconds_to_time
 
 
 def tracks(count):

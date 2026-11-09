@@ -14,8 +14,8 @@ from urllib.parse import parse_qsl, urlsplit, urlunsplit
 import requests
 from requests.adapters import HTTPAdapter
 
-from auth import Session, SessionManager, SignInRequired, read_browser_tokens, read_cookie_file, SignInError
-from core import Engagement, Settings, SoundCloudItem, atomic_write, cache_dir
+from .auth import Session, SessionManager, SignInRequired, read_browser_tokens, read_cookie_file, SignInError
+from .core import Engagement, Settings, SoundCloudItem, atomic_write, cache_dir
 
 API_HOST = "api-v2.soundcloud.com"
 API_ROOT = f"https://{API_HOST}"

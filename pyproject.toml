@@ -21,11 +21,11 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [project.scripts]
-soundcloud-rpc-tui = "app:main"
+soundcloud-rpc-tui = "soundcloud_rpc_tui.ui.app:main"
 
-[tool.setuptools]
-py-modules = ["app", "auth", "core", "integrations", "player", "screens", "soundcloud", "widgets"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+pythonpath = ["src"]

@@ -43,7 +43,7 @@ python -m pip install -e .
 soundcloud-rpc-tui
 ```
 
-Or run `python app.py` from the checkout.
+Or run `python -m soundcloud_rpc_tui`.
 
 ## Sign in
 
@@ -141,3 +141,16 @@ This app uses `api-v2.soundcloud.com`, the private API behind SoundCloud's websi
 python -m pip install -e '.[dev]'
 python -m pytest
 ```
+
+The code lives in `src/soundcloud_rpc_tui`:
+
+| Path | Purpose |
+| --- | --- |
+| `core.py` | Data types, settings, the play queue, and formatting helpers |
+| `auth.py` | Sign-in, token storage, and session renewal |
+| `soundcloud.py` | The SoundCloud API client |
+| `player.py` | Audio playback through `mpv` or `ffplay` |
+| `integrations.py` | Discord Rich Presence |
+| `ui/app.py` | The main app: views, playback control, and key bindings |
+| `ui/screens.py` | Dialogs: sign-in, playlists, settings, and help |
+| `ui/widgets.py` | The waveform, player bar, sidebar, track list, and themes |

@@ -9,14 +9,14 @@ import pytest
 from textual.css.query import NoMatches
 from textual.widgets import Input
 
-from app import SoundCloudRpcTui
-from auth import Session, SessionManager, SessionStore, SignInRequired
-from core import Engagement, Settings, SettingsStore, SoundCloudItem
-from integrations import DiscordPresence, IntegrationHub
-from core import NowPlaying
-from screens import ConfirmScreen, HelpScreen, InfoScreen, NewPlaylistScreen, PlaylistPickerScreen, SettingsScreen, SignInScreen
-from soundcloud import AlreadyInPlaylist, Page, SoundCloudError
-from widgets import PlayerBar, TrackTable, WaveformBar, bucket_samples, render_artwork, waveform_rows
+from soundcloud_rpc_tui.ui.app import SoundCloudRpcTui
+from soundcloud_rpc_tui.auth import Session, SessionManager, SessionStore, SignInRequired
+from soundcloud_rpc_tui.core import Engagement, Settings, SettingsStore, SoundCloudItem
+from soundcloud_rpc_tui.integrations import DiscordPresence, IntegrationHub
+from soundcloud_rpc_tui.core import NowPlaying
+from soundcloud_rpc_tui.ui.screens import ConfirmScreen, HelpScreen, InfoScreen, NewPlaylistScreen, PlaylistPickerScreen, SettingsScreen, SignInScreen
+from soundcloud_rpc_tui.soundcloud import AlreadyInPlaylist, Page, SoundCloudError
+from soundcloud_rpc_tui.ui.widgets import PlayerBar, TrackTable, WaveformBar, bucket_samples, render_artwork, waveform_rows
 
 
 def track(index: int, **extra) -> SoundCloudItem:
@@ -821,7 +821,7 @@ def test_columns_fit_the_table_after_resizing(tmp_path, width):
 
 
 def test_playlists_and_people_show_track_counts_not_play_counts(tmp_path):
-    from widgets import item_cells
+    from soundcloud_rpc_tui.ui.widgets import item_cells
 
     playlist = SoundCloudItem(kind="playlist", title="P", likes=9, track_count=31)
     title, _, plays, length = item_cells(playlist, True)
@@ -943,7 +943,7 @@ def test_discord_does_not_retry_connection_every_tick(monkeypatch):
         async def connect(self):
             raise OSError("no discord")
 
-    monkeypatch.setattr("integrations.AioPresence", Broken)
+    monkeypatch.setattr("soundcloud_rpc_tui.integrations.AioPresence", Broken)
 
     async def run():
         presence = DiscordPresence(Settings())
@@ -976,7 +976,7 @@ def test_discord_sends_only_on_change(monkeypatch):
         def close(self):
             pass
 
-    monkeypatch.setattr("integrations.AioPresence", Fake)
+    monkeypatch.setattr("soundcloud_rpc_tui.integrations.AioPresence", Fake)
 
     async def run():
         presence = DiscordPresence(Settings())

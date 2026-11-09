@@ -4,10 +4,10 @@ import time
 
 import pytest
 
-from auth import Session, SessionManager, SessionStore, SignInError, SignInRequired
+from soundcloud_rpc_tui.auth import Session, SessionManager, SessionStore, SignInError, SignInRequired
 from conftest import FakeHttp, FakeResponse, raw_track
-from core import SoundCloudItem
-from soundcloud import AlreadyInPlaylist, NotFound, SoundCloudClient, SoundCloudError, parse_item, playable_transcodings
+from soundcloud_rpc_tui.core import SoundCloudItem
+from soundcloud_rpc_tui.soundcloud import AlreadyInPlaylist, NotFound, SoundCloudClient, SoundCloudError, parse_item, playable_transcodings
 
 
 def jwt(exp_offset=3600, client_id="tokenclient"):

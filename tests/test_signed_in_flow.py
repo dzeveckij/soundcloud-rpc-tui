@@ -10,15 +10,15 @@ import asyncio
 
 from textual.widgets import Input
 
-from app import SoundCloudRpcTui
-from auth import SessionManager, SessionStore
+from soundcloud_rpc_tui.ui.app import SoundCloudRpcTui
+from soundcloud_rpc_tui.auth import SessionManager, SessionStore
 from conftest import FakeHttp, FakeResponse, raw_track
-from core import SettingsStore
-from integrations import IntegrationHub
-from screens import PlaylistPickerScreen, SignInScreen
-from soundcloud import SoundCloudClient
+from soundcloud_rpc_tui.core import SettingsStore
+from soundcloud_rpc_tui.integrations import IntegrationHub
+from soundcloud_rpc_tui.ui.screens import PlaylistPickerScreen, SignInScreen
+from soundcloud_rpc_tui.soundcloud import SoundCloudClient
 from test_app import FakePlayer, settle
-from widgets import TrackTable
+from soundcloud_rpc_tui.ui.widgets import TrackTable
 
 PLAYLIST_RAW = {"kind": "playlist", "id": 50, "title": "Road trip", "track_count": 1, "sharing": "private", "user": {"id": 42}}
 

@@ -9,8 +9,8 @@ from pathlib import Path
 
 import pytest
 
-import player as player_module
-from player import FfplayBackend, MpvBackend, Player, PlayerUnavailable
+from soundcloud_rpc_tui import player as player_module
+from soundcloud_rpc_tui.player import FfplayBackend, MpvBackend, Player, PlayerUnavailable
 
 
 def wait_for(condition, timeout=5.0):

@@ -13,11 +13,11 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, Input, Label, OptionList, Select, Static, Switch
 from textual.widgets.option_list import Option
 
-from auth import Session, SignInError, detect_browsers
-from core import SettingsStore, SoundCloudItem, compact_count, seconds_to_time
-from integrations import IntegrationHub
-from soundcloud import SoundCloudClient, SoundCloudError
-from widgets import THEME_CHOICES
+from ..auth import Session, SignInError, detect_browsers
+from ..core import SettingsStore, SoundCloudItem, compact_count, seconds_to_time
+from ..integrations import IntegrationHub
+from ..soundcloud import SoundCloudClient, SoundCloudError
+from .widgets import THEME_CHOICES
 
 class ConfirmScreen(ModalScreen[bool]):
     AUTO_FOCUS = "*"

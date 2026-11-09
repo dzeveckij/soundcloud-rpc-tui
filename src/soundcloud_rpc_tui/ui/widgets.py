@@ -15,7 +15,7 @@ from textual.widget import Widget
 from textual.widgets import DataTable, OptionList, Static
 from textual.widgets.option_list import Option
 
-from core import compact_count, normalize_track_info, seconds_to_time
+from ..core import compact_count, normalize_track_info, seconds_to_time
 
 LIKED_COLOR = "#ff4f8b"
 BLOCKS = " ▁▂▃▄▅▆▇█"

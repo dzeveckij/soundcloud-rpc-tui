@@ -6,7 +6,7 @@ import time
 
 import pytest
 
-from auth import Session, SessionManager, SessionStore, SignInError, SignInRequired, decode_jwt_claims, detect_browsers, read_browser_tokens, read_cookie_file
+from soundcloud_rpc_tui.auth import Session, SessionManager, SessionStore, SignInError, SignInRequired, decode_jwt_claims, detect_browsers, read_browser_tokens, read_cookie_file
 from conftest import FakeResponse
 
 

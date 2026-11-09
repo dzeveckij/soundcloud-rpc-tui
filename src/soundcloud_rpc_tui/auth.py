@@ -26,7 +26,7 @@ from typing import Any, Callable
 
 import requests
 
-from core import atomic_write, config_dir
+from .core import atomic_write, config_dir
 
 TOKEN_URL = "https://secure.soundcloud.com/oauth/token"
 ACCESS_COOKIE = "oauth_token"

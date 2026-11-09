@@ -7,8 +7,8 @@ from typing import Any
 
 from pypresence import ActivityType, AioPresence, StatusDisplayType
 
-from core import NowPlaying, Settings, normalize_track_info
-from soundcloud import sized_artwork
+from .core import NowPlaying, Settings, normalize_track_info
+from .soundcloud import sized_artwork
 
 DISCORD_CLIENT_ID = "1090770350251458592"
 RECONNECT_SECONDS = 15

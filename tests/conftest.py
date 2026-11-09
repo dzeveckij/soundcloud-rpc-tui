@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-import core
+from soundcloud_rpc_tui import core
 
 
 class FakeResponse:

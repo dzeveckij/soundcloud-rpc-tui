@@ -18,13 +18,13 @@ from textual.css.query import NoMatches
 from textual.timer import Timer
 from textual.widgets import DataTable, Footer, Input, OptionList, Static, Tab, Tabs
 
-from auth import Session, SessionManager, SignInError, SignInRequired
-from core import DEFAULT_THEME, Engagement, NowPlaying, PlayQueue, SettingsStore, SoundCloudItem, normalize_track_info
-from integrations import IntegrationHub
-from player import Player, PlayerUnavailable
-from screens import ConfirmScreen, HelpScreen, InfoScreen, NewPlaylistScreen, PlaylistPickerScreen, SettingsScreen, SignInScreen
-from soundcloud import Page, SoundCloudClient, SoundCloudError, sized_artwork
-from widgets import LIKED_COLOR, THEMES, TIME_COLUMN_WIDTH, NavList, PlayerBar, TrackTable, WaveformBar, item_cells, render_artwork
+from ..auth import Session, SessionManager, SignInError, SignInRequired
+from ..core import DEFAULT_THEME, Engagement, NowPlaying, PlayQueue, SettingsStore, SoundCloudItem, normalize_track_info
+from ..integrations import IntegrationHub
+from ..player import Player, PlayerUnavailable
+from .screens import ConfirmScreen, HelpScreen, InfoScreen, NewPlaylistScreen, PlaylistPickerScreen, SettingsScreen, SignInScreen
+from ..soundcloud import Page, SoundCloudClient, SoundCloudError, sized_artwork
+from .widgets import LIKED_COLOR, THEMES, TIME_COLUMN_WIDTH, NavList, PlayerBar, TrackTable, WaveformBar, item_cells, render_artwork
 
 VIEW_TTL_SECONDS = 300
 SEARCH_DEBOUNCE_SECONDS = 0.28
