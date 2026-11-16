@@ -1,7 +1,11 @@
 import json
+import os
 import random
 import stat
 
+import pytest
+
+from soundcloud_rpc_tui import core
 from soundcloud_rpc_tui.core import Engagement, PlayQueue, Settings, SettingsStore, SoundCloudItem, atomic_write, compact_count, normalize_track_info, seconds_to_time
 
 
@@ -112,11 +116,44 @@ def test_settings_survive_corrupt_file(tmp_path):
     assert SettingsStore(path).settings == Settings()
 
 
-def test_atomic_write_sets_private_mode(tmp_path):
+def test_atomic_write_leaves_no_temp_files(tmp_path):
     path = tmp_path / "sub" / "secret.json"
     atomic_write(path, "{}")
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    atomic_write(path, '{"a": 1}')
+    assert json.loads(path.read_text(encoding="utf-8")) == {"a": 1}
     assert [entry.name for entry in path.parent.iterdir()] == ["secret.json"]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows protects the profile folder instead of file modes")
+def test_atomic_write_sets_private_mode(tmp_path):
+    path = tmp_path / "secret.json"
+    atomic_write(path, "{}")
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+def test_settings_keep_non_ascii_text_on_every_platform(tmp_path):
+    path = tmp_path / "settings.json"
+    store = SettingsStore(path)
+    store.settings.soundcloud_username = "björk-ñ-日本"
+    store.save()
+    assert SettingsStore(path).settings.soundcloud_username == "björk-ñ-日本"
+
+
+def test_xdg_folders_win_when_set(monkeypatch, tmp_path):
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "c"))
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "k"))
+    assert core.config_dir() == tmp_path / "c" / "soundcloud-rpc-tui"
+    assert core.cache_dir() == tmp_path / "k" / "soundcloud-rpc-tui"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows folders")
+def test_windows_uses_appdata(monkeypatch, tmp_path):
+    monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
+    monkeypatch.delenv("XDG_CACHE_HOME", raising=False)
+    monkeypatch.setenv("APPDATA", str(tmp_path / "Roaming"))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
+    assert core.config_dir() == tmp_path / "Roaming" / "soundcloud-rpc-tui"
+    assert core.cache_dir() == tmp_path / "Local" / "soundcloud-rpc-tui" / "Cache"
 
 
 def test_engagement_tracks_each_kind_separately():

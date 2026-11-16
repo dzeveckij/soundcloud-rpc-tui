@@ -5,6 +5,7 @@ import os
 import random
 import re
 import tempfile
+import time
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any, Iterable
@@ -286,18 +287,28 @@ class Settings:
     theme: str = DEFAULT_THEME
 
 
+APP_DIR_NAME = "soundcloud-rpc-tui"
+
+
 def config_dir() -> Path:
+    """Settings and tokens: %APPDATA% on Windows, otherwise $XDG_CONFIG_HOME or ~/.config."""
     root = os.environ.get("XDG_CONFIG_HOME")
     if root:
-        return Path(root) / "soundcloud-rpc-tui"
-    return Path.home() / ".config" / "soundcloud-rpc-tui"
+        return Path(root) / APP_DIR_NAME
+    if os.name == "nt":
+        return Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming") / APP_DIR_NAME
+    return Path.home() / ".config" / APP_DIR_NAME
 
 
 def cache_dir() -> Path:
+    """Disposable data: %LOCALAPPDATA% on Windows, otherwise $XDG_CACHE_HOME or ~/.cache."""
     root = os.environ.get("XDG_CACHE_HOME")
     if root:
-        return Path(root) / "soundcloud-rpc-tui"
-    return Path.home() / ".cache" / "soundcloud-rpc-tui"
+        return Path(root) / APP_DIR_NAME
+    if os.name == "nt":
+        local = Path(os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local")
+        return local / APP_DIR_NAME / "Cache"
+    return Path.home() / ".cache" / APP_DIR_NAME
 
 
 def atomic_write(path: Path, text: str, mode: int = 0o600) -> None:
@@ -307,14 +318,26 @@ def atomic_write(path: Path, text: str, mode: int = 0o600) -> None:
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
             stream.write(text)
-        os.chmod(temp_name, mode)
-        os.replace(temp_name, path)
+        os.chmod(temp_name, mode)  # On Windows, the per-user profile folder's permissions apply instead.
+        _replace(temp_name, path)
     except BaseException:
         try:
             os.unlink(temp_name)
         except OSError:
             pass
         raise
+
+
+def _replace(source: str, target: Path) -> None:
+    """os.replace, retried briefly: on Windows, antivirus or indexing can hold the target open."""
+    for attempt in range(5):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if os.name != "nt" or attempt == 4:
+                raise
+            time.sleep(0.05 * (attempt + 1))
 
 
 class SettingsStore:

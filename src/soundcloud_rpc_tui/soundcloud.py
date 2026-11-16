@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -608,6 +609,12 @@ class SoundCloudClient:
         except Exception as exc:
             raise SignInError(_browser_error_message(source, exc)) from exc
         if not access:
+            if sys.platform == "win32" and _is_chromium_source(source):
+                # Newer Chromium builds on Windows hide cookie values instead of failing.
+                raise SignInError(
+                    "Couldn't find a SoundCloud session in that browser. If you're signed in there, "
+                    "the browser is hiding it. " + WINDOWS_CHROMIUM_HINT
+                )
             raise SignInError(
                 "That browser isn't signed in to SoundCloud. Sign in on soundcloud.com, then import again."
             )
@@ -763,15 +770,42 @@ class SoundCloudClient:
         self._request("DELETE", f"/playlists/{playlist_id}", auth_required=True)
 
 
-def _browser_error_message(source: str, exc: Exception) -> str:
+WINDOWS_CHROMIUM_HINT = (
+    "On Windows, Chrome, Edge, and Brave encrypt their cookies so that other apps can't read them. "
+    "Import from Firefox instead, or paste your oauth_token cookie below."
+)
+
+
+def _is_chromium_source(source: str) -> bool:
+    browser = source.split("|", 1)[0].split(":", 1)[0]
+    return browser in {"chrome", "chromium", "brave", "edge", "opera", "vivaldi", "whale"}
+
+
+def _browser_error_message(source: str, exc: Exception, platform: str | None = None) -> str:
+    platform = platform or sys.platform
     text = str(exc).lower()
-    if source.startswith("safari") or "operation not permitted" in text or "permission" in text:
-        return (
-            "macOS blocked access to Safari's cookies. Give your terminal Full Disk Access in "
-            "System Settings, or import from another browser."
-        )
+    if platform == "win32":
+        if "could not copy" in text or "permission" in text or "being used by another process" in text:
+            if _is_chromium_source(source):
+                return (
+                    "That browser is running and has locked its cookies. Close it completely (including "
+                    "from the system tray), then import again. " + WINDOWS_CHROMIUM_HINT
+                )
+            return "That browser has locked its cookies. Close it completely, then import again."
+        if _is_chromium_source(source):
+            return WINDOWS_CHROMIUM_HINT
+    elif platform == "darwin":
+        if source.startswith("safari") or "operation not permitted" in text or "permission" in text:
+            return (
+                "macOS blocked access to Safari's cookies. Give your terminal Full Disk Access in "
+                "System Settings, or import from another browser."
+            )
     if "keyring" in text or "keychain" in text or "safe storage" in text or "decrypt" in text:
-        return "Could not unlock that browser's cookies. Allow Keychain access, or paste a token instead."
+        if platform == "darwin":
+            return "Could not unlock that browser's cookies. Allow Keychain access, or paste a token instead."
+        return "Could not unlock that browser's cookies. Unlock your system keyring, or paste a token instead."
+    if "permission" in text:
+        return "This app isn't allowed to read that browser's cookies. Close the browser and try again, or paste a token."
     if "could not find" in text:
         return "No cookies found for that browser. Sign in on soundcloud.com first, or choose another browser."
     return f"Could not read that browser's cookies: {exc}"

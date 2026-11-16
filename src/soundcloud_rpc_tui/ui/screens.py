@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import webbrowser
 from typing import Any
 
@@ -73,7 +74,7 @@ class SignInScreen(ModalScreen[Session | None]):
     def __init__(self, client: SoundCloudClient) -> None:
         super().__init__()
         self.client = client
-        self.browsers = detect_browsers()
+        self.browsers = [(_browser_label(label, source), source) for label, source in detect_browsers()]
 
     def compose(self) -> ComposeResult:
         session = self.client.auth.session
@@ -95,7 +96,7 @@ class SignInScreen(ModalScreen[Session | None]):
             yield Static(
                 "Sessions renew about every hour. The app reads your browser again first. If that session "
                 "has also expired, the app renews it, and your browser may then ask you to sign in again.\n"
-                "macOS may ask for Keychain access. Safari needs Full Disk Access for your terminal.",
+                + _PLATFORM_SIGN_IN_HINT,
                 classes="hint",
             )
             yield Label("Or paste the oauth_token cookie, or a path to a cookies.txt file")
@@ -141,7 +142,8 @@ class SignInScreen(ModalScreen[Session | None]):
 
     @on(Button.Pressed, "#use-token")
     def use_token(self) -> None:
-        value = self.query_one("#token", Input).value.strip()
+        # Windows' "Copy as path" wraps paths in quotes.
+        value = self.query_one("#token", Input).value.strip().strip('"').strip()
         refresh = self.query_one("#refresh", Input).value.strip()
         if not value:
             self._status("Enter a token or a cookies.txt path first.", True)
@@ -161,6 +163,23 @@ class SignInScreen(ModalScreen[Session | None]):
     @on(Button.Pressed, "#close")
     def action_cancel(self) -> None:
         self.dismiss(self.client.auth.session if self.client.auth.signed_in else None)
+
+
+if sys.platform == "win32":
+    _PLATFORM_SIGN_IN_HINT = (
+        "On Windows, Firefox works best. Chrome, Edge, and Brave usually hide their cookies from other "
+        "apps, so for those, paste the oauth_token cookie below."
+    )
+elif sys.platform == "darwin":
+    _PLATFORM_SIGN_IN_HINT = "macOS may ask for Keychain access. Safari needs Full Disk Access for your terminal."
+else:
+    _PLATFORM_SIGN_IN_HINT = "Chromium-based browsers may ask your system keyring to unlock their cookies."
+
+
+def _browser_label(label: str, source: str) -> str:
+    if sys.platform == "win32" and "|" in source:
+        return f"{label} (usually blocked on Windows)"
+    return label
 
 
 class NewPlaylistScreen(ModalScreen[tuple[str, bool] | None]):

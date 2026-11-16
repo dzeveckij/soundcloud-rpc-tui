@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import sqlite3
 import stat
 import time
@@ -35,7 +36,8 @@ def test_jwt_claims_and_legacy_tokens():
 def test_session_file_is_private_and_round_trips(tmp_path):
     store = SessionStore(tmp_path / "auth.json")
     store.save(Session("token", "refresh", "firefox", "1", "me"))
-    assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
+    if os.name != "nt":
+        assert stat.S_IMODE(store.path.stat().st_mode) == 0o600
     assert store.load().refresh_token == "refresh"
     store.clear()
     assert store.load() is None

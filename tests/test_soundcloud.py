@@ -5,8 +5,9 @@ import time
 import pytest
 
 from soundcloud_rpc_tui.auth import Session, SessionManager, SessionStore, SignInError, SignInRequired
-from conftest import FakeHttp, FakeResponse, raw_track
+from conftest import FakeResponse, raw_track
 from soundcloud_rpc_tui.core import SoundCloudItem
+from soundcloud_rpc_tui import soundcloud as soundcloud_module
 from soundcloud_rpc_tui.soundcloud import AlreadyInPlaylist, NotFound, SoundCloudClient, SoundCloudError, parse_item, playable_transcodings
 
 
@@ -402,3 +403,27 @@ def test_waveform_ignores_non_json_and_failures(anon, http):
     assert anon.waveform(SoundCloudItem(waveform_url="https://w/x.png")) == []
     http.on("GET", "wave", {"samples": [1, 2, 3]})
     assert anon.waveform(SoundCloudItem(waveform_url="https://wave/x.json")) == [1, 2, 3]
+
+
+def test_browser_errors_give_advice_for_this_platform():
+    message = soundcloud_module._browser_error_message
+    locked = PermissionError("Could not copy Chrome cookie database. See https://github.com/yt-dlp/yt-dlp/issues/7271")
+    windows_chrome = message(r"chrome|C:\Users\me\AppData\Local\Google\Chrome\User Data", locked, "win32")
+    assert "Close it completely" in windows_chrome and "Firefox" in windows_chrome
+    assert "macOS" not in windows_chrome
+    undecryptable = message(r"edge:C:\Users\me\Edge\Default", AttributeError("'NoneType' object has no attribute 'decode'"), "win32")
+    assert "Firefox" in undecryptable
+    assert "Full Disk Access" in message("safari", PermissionError("Operation not permitted"), "darwin")
+    assert "Keychain" in message("chrome", RuntimeError("cannot decrypt: keychain"), "darwin")
+    linux = message("chrome", RuntimeError("failed to read from keyring"), "linux")
+    assert "keyring" in linux and "Keychain" not in linux and "macOS" not in message("firefox", PermissionError("denied"), "linux")
+
+
+def test_windows_chromium_with_hidden_cookies_explains_why(monkeypatch, http, settings):
+    monkeypatch.setattr(soundcloud_module.sys, "platform", "win32")
+    monkeypatch.setattr(soundcloud_module, "read_browser_tokens", lambda source: ("", "", source))
+    client = SoundCloudClient(settings, SessionManager(SessionStore()), http)
+    with pytest.raises(SignInError, match="Firefox"):
+        client.sign_in_with_browser(r"chrome|C:\Chrome\User Data")
+    with pytest.raises(SignInError, match="isn't signed in"):
+        client.sign_in_with_browser("firefox")

@@ -1439,9 +1439,11 @@ def main() -> None:
         app.player.close()
         app.exit()
 
-    signal.signal(signal.SIGTERM, shut_down)
-    if hasattr(signal, "SIGHUP"):
-        signal.signal(signal.SIGHUP, shut_down)
+    # SIGHUP: the terminal closed (macOS, Linux). SIGBREAK: Ctrl+Break (Windows). On Windows,
+    # closing the window ends the process outright, and the player's job object stops the audio.
+    for name in ("SIGTERM", "SIGHUP", "SIGBREAK"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), shut_down)
 
     app.run()
     app.player.close()

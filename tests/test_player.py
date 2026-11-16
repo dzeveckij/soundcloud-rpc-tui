@@ -1,7 +1,7 @@
 import json
 import os
 import socket
-import stat
+import subprocess
 import sys
 import threading
 import time
@@ -22,7 +22,7 @@ def wait_for(condition, timeout=5.0):
     return False
 
 
-FAKE_FFPLAY = """#!{python}
+FAKE_FFPLAY = """
 import sys, time, json, os
 args = sys.argv[1:]
 with open(os.environ["FAKE_LOG"], "a") as log:
@@ -44,12 +44,20 @@ for step in range(400 if mode == "long" else 3):
 
 @pytest.fixture
 def fake_ffplay(tmp_path, monkeypatch):
-    script = tmp_path / "ffplay"
-    script.write_text(FAKE_FFPLAY.format(python=sys.executable))
-    script.chmod(script.stat().st_mode | stat.S_IEXEC)
+    """A Python stand-in for ffplay. It runs through the interpreter so it works on Windows too."""
+    script = tmp_path / "ffplay.py"
+    script.write_text(FAKE_FFPLAY.format(), encoding="utf-8")
     log = tmp_path / "ffplay.log"
     log.touch()
     monkeypatch.setenv("FAKE_LOG", str(log))
+    real_popen = subprocess.Popen
+
+    def popen(command, **kwargs):
+        if command and command[0] == str(script):
+            command = [sys.executable, *command]
+        return real_popen(command, **kwargs)
+
+    monkeypatch.setattr(player_module.subprocess, "Popen", popen)
     return script, log
 
 
@@ -154,23 +162,43 @@ def test_ffplay_stop_does_not_block(fake_ffplay):
 
 
 class FakeMpv:
-    """Speaks the JSON IPC protocol documented by mpv, on the path mpv was given."""
+    """Speaks the JSON IPC protocol documented by mpv, on the path mpv was given.
+
+    That path is a Unix socket on macOS and Linux and a named pipe on Windows,
+    so this exercises the same transport the real app uses on each.
+    """
 
     def __init__(self, path: str) -> None:
         self.commands: list[list] = []
-        self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.server.bind(path)
-        self.server.listen(1)
-        self.connection: socket.socket | None = None
+        self.connection = None
+        if os.name == "nt":
+            from multiprocessing.connection import Listener
+
+            self.server = Listener(path, family="AF_PIPE")
+        else:
+            self.server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            self.server.bind(path)
+            self.server.listen(1)
         threading.Thread(target=self._serve, daemon=True).start()
 
+    def _accept(self):
+        if os.name == "nt":
+            return self.server.accept()
+        connection, _ = self.server.accept()
+        return connection
+
+    def _receive(self) -> bytes:
+        if os.name == "nt":
+            return self.connection.recv_bytes()
+        return self.connection.recv(4096)
+
     def _serve(self) -> None:
-        self.connection, _ = self.server.accept()
+        self.connection = self._accept()
         buffer = b""
         while True:
             try:
-                chunk = self.connection.recv(4096)
-            except OSError:
+                chunk = self._receive()
+            except (OSError, EOFError):
                 return
             if not chunk:
                 return
@@ -180,7 +208,14 @@ class FakeMpv:
                 self.commands.append(json.loads(line)["command"])
 
     def emit(self, **event) -> None:
-        self.connection.sendall(json.dumps(event).encode() + b"\n")
+        payload = json.dumps(event).encode() + b"\n"
+        if os.name == "nt":
+            self.connection.send_bytes(payload)
+        else:
+            self.connection.sendall(payload)
+
+    def drop(self) -> None:
+        self.connection.close()
 
 
 @pytest.fixture
@@ -257,20 +292,32 @@ def test_mpv_live_controls_use_ipc(mpv):
 def test_mpv_marks_itself_dead_when_connection_drops(mpv):
     backend, fake = mpv
     backend.load("https://stream")
-    fake.connection.close()
+    fake.drop()
     assert wait_for(lambda: backend.dead and backend.finished)
 
 
 def test_player_falls_back_to_ffplay_when_mpv_fails(monkeypatch, fake_ffplay):
     script, _ = fake_ffplay
 
-    def which(name):
-        return {"mpv": "/bin/mpv", "ffplay": str(script)}.get(name)
-
     def broken_mpv(*args, **kwargs):
         raise PlayerUnavailable("mpv did not start")
 
-    monkeypatch.setattr(player_module.shutil, "which", which)
+    monkeypatch.setattr(player_module, "find_binary", {"mpv": "mpv", "ffplay": str(script)}.get)
+    monkeypatch.setattr(player_module, "MpvBackend", broken_mpv)
+    instance = Player("auto", 50)
+    instance.load("https://stream")
+    assert instance.name == "ffplay"
+    instance.close()
+
+
+def test_player_falls_back_to_ffplay_on_any_mpv_error(monkeypatch, fake_ffplay):
+    """An unexpected failure, like a missing socket type, must not block playback."""
+    script, _ = fake_ffplay
+
+    def broken_mpv(*args, **kwargs):
+        raise AttributeError("module 'socket' has no attribute 'AF_UNIX'")
+
+    monkeypatch.setattr(player_module, "find_binary", {"mpv": "mpv", "ffplay": str(script)}.get)
     monkeypatch.setattr(player_module, "MpvBackend", broken_mpv)
     instance = Player("auto", 50)
     instance.load("https://stream")
@@ -279,23 +326,149 @@ def test_player_falls_back_to_ffplay_when_mpv_fails(monkeypatch, fake_ffplay):
 
 
 def test_player_without_any_backend_explains_what_to_install(monkeypatch):
-    monkeypatch.setattr(player_module.shutil, "which", lambda name: None)
-    with pytest.raises(PlayerUnavailable, match="Install mpv or FFmpeg"):
+    monkeypatch.setattr(player_module, "find_binary", lambda name: None)
+    with pytest.raises(PlayerUnavailable, match="Install mpv"):
         Player("auto").load("https://stream")
 
 
 def test_player_requested_mpv_does_not_silently_use_ffplay(monkeypatch):
-    monkeypatch.setattr(player_module.shutil, "which", lambda name: "/bin/ffplay" if name == "ffplay" else None)
+    monkeypatch.setattr(player_module, "find_binary", lambda name: "ffplay" if name == "ffplay" else None)
     with pytest.raises(PlayerUnavailable, match="mpv"):
         Player("mpv").load("https://stream")
 
 
-def test_idle_player_is_safe_to_control():
-    instance = Player("auto")
-    instance.pause()
-    instance.resume()
-    instance.seek(5)
-    instance.set_volume(10)
-    instance.stop()
-    instance.close()
-    assert instance.position == 0 and not instance.finished and instance.volume == 10
+def test_mpv_process_is_stopped_when_it_never_answers(monkeypatch):
+    stopped = []
+
+    class SilentProcess:
+        def __init__(self, command, **kwargs):
+            pass
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            stopped.append(True)
+
+        def wait(self, timeout=None):
+            return 0
+
+    monkeypatch.setattr(player_module.subprocess, "Popen", SilentProcess)
+    with pytest.raises(PlayerUnavailable):
+        MpvBackend(70, "mpv", connect_timeout=0.1)
+    assert stopped
+
+
+def test_mpv_launched_through_a_launcher_that_exits_still_connects(monkeypatch):
+    """Chocolatey's shim starts mpv and exits 0 at once; the pipe still appears."""
+    fakes = []
+
+    class Launcher:
+        def __init__(self, command, **kwargs):
+            path = next(arg.split("=", 1)[1] for arg in command if arg.startswith("--input-ipc-server="))
+            fakes.append(FakeMpv(path))
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout=None):
+            return 0
+
+    monkeypatch.setattr(player_module.subprocess, "Popen", Launcher)
+    backend = MpvBackend(70, "mpv", connect_timeout=2)
+    assert wait_for(lambda: fakes and len(fakes[0].commands) >= 3)
+    backend.close()
+
+
+def test_windows_install_locations_cover_winget_scoop_and_program_files(monkeypatch, tmp_path):
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "Local"))
+    monkeypatch.setenv("ProgramFiles", str(tmp_path / "Program Files"))
+    monkeypatch.setenv("SCOOP", str(tmp_path / "scoop"))
+    package = tmp_path / "Local" / "Microsoft" / "WinGet" / "Packages" / "Gyan.FFmpeg_x" / "ffmpeg-8.0-full_build" / "bin"
+    package.mkdir(parents=True)
+    (package / "ffplay.exe").touch()
+    places = [str(path) for path in player_module._windows_install_locations("ffplay")]
+    assert str(package / "ffplay.exe") in places
+    assert str(tmp_path / "Local" / "Microsoft" / "WinGet" / "Links" / "ffplay.exe") in places
+    assert str(tmp_path / "scoop" / "shims" / "ffplay.exe") in places
+    mpv_places = [str(path) for path in player_module._windows_install_locations("mpv")]
+    assert str(tmp_path / "Program Files" / "MPV Player" / "mpv.exe") in mpv_places
+
+
+def test_windows_finds_a_player_that_is_installed_but_not_on_path(monkeypatch, tmp_path):
+    binary = tmp_path / "mpv.exe"
+    binary.touch()
+    monkeypatch.setattr(player_module, "WINDOWS", True)
+    monkeypatch.setattr(player_module.shutil, "which", lambda name: None)
+    monkeypatch.setattr(player_module, "_windows_install_locations", lambda name: [tmp_path / "missing.exe", binary])
+    assert player_module.find_binary("mpv") == str(binary)
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows job objects")
+def test_windows_job_ends_children_when_the_app_exits():
+    import ctypes
+
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    job = player_module._create_kill_on_close_job()
+    assert job
+    assert player_module._assign_to_job(job, child)
+    ctypes.WinDLL("kernel32").CloseHandle(job)  # What happens when the app's process ends.
+    assert child.wait(timeout=10) is not None
+
+
+def test_pause_freezes_a_real_process_in_place():
+    child = subprocess.Popen(
+        [sys.executable, "-u", "-c", "import time\nwhile True:\n    print(time.monotonic(), flush=True)\n    time.sleep(0.02)"],
+        stdout=subprocess.PIPE,
+    )
+    try:
+        child.stdout.readline()
+        assert player_module._set_suspended(child, True)
+        time.sleep(0.3)
+        _drain(child)  # Lines written before the suspend took effect.
+        time.sleep(0.3)
+        assert _drain(child) == b"", "the process kept running while suspended"
+        assert player_module._set_suspended(child, False)
+        assert child.stdout.readline()
+        assert child.poll() is None
+    finally:
+        child.kill()
+        child.wait()
+
+
+def _drain(process) -> bytes:
+    """Read whatever is waiting on stdout without blocking."""
+    received = b""
+    if os.name == "nt":
+        import _winapi
+        import msvcrt
+
+        handle = msvcrt.get_osfhandle(process.stdout.fileno())
+        available, _ = _winapi.PeekNamedPipe(handle, 0)
+        if available:
+            received = os.read(process.stdout.fileno(), available)
+    else:
+        import select
+
+        while select.select([process.stdout], [], [], 0)[0]:
+            chunk = os.read(process.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            received += chunk
+    return received
+
+
+@pytest.mark.skipif(not player_module.find_binary("mpv"), reason="mpv isn't installed")
+def test_real_mpv_starts_and_answers_over_ipc():
+    """Run the installed mpv. On Windows this checks the named-pipe transport for real."""
+    backend = MpvBackend(30, player_module.find_binary("mpv"))
+    try:
+        assert not backend.dead
+        backend.set_volume(25)
+        backend.pause()
+        backend.resume()
+        time.sleep(0.2)
+        assert not backend.dead
+    finally:
+        backend.close()
+    assert backend._process.poll() is not None

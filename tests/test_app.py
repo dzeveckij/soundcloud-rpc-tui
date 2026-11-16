@@ -16,7 +16,7 @@ from soundcloud_rpc_tui.integrations import DiscordPresence, IntegrationHub
 from soundcloud_rpc_tui.core import NowPlaying
 from soundcloud_rpc_tui.ui.screens import ConfirmScreen, HelpScreen, InfoScreen, NewPlaylistScreen, PlaylistPickerScreen, SettingsScreen, SignInScreen
 from soundcloud_rpc_tui.soundcloud import AlreadyInPlaylist, Page, SoundCloudError
-from soundcloud_rpc_tui.ui.widgets import PlayerBar, TrackTable, WaveformBar, bucket_samples, render_artwork, waveform_rows
+from soundcloud_rpc_tui.ui.widgets import TrackTable, WaveformBar, bucket_samples, render_artwork, waveform_rows
 
 
 def track(index: int, **extra) -> SoundCloudItem:

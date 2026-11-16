@@ -17,25 +17,41 @@ Built with [Textual](https://textual.textualize.io/). Plays audio through `mpv` 
 - **Playback:** seek by clicking the waveform, volume, shuffle, repeat, an Up next queue, and related tracks.
 - **Discord Rich Presence** with the track, artist, cover art, and time remaining.
 
-## Requirements
-
-- Python 3.10 or newer
-- `mpv` (recommended) or `ffplay` from FFmpeg
-
-```bash
-brew install mpv         # macOS
-sudo apt install mpv     # Debian and Ubuntu
-```
-
-`ffplay` works too, but it restarts the stream when you seek or change the volume, which causes a short gap. `mpv` does both instantly.
-
 ## Install
 
+You need an audio player and the app. The app runs on Windows, macOS, and Linux with Python 3.10 or newer.
+
+### 1. Install an audio player
+
+`mpv` is recommended. `ffplay`, which comes with FFmpeg, works too, but it restarts the stream when you seek or change the volume, so you hear a short gap.
+
+| System | mpv | or FFmpeg |
+| --- | --- | --- |
+| Windows | `winget install shinchiro.mpv` | `winget install Gyan.FFmpeg` |
+| macOS | `brew install mpv` | `brew install ffmpeg` |
+| Debian, Ubuntu | `sudo apt install mpv` | `sudo apt install ffmpeg` |
+| Fedora | `sudo dnf install mpv` | `sudo dnf install ffmpeg` |
+| Arch | `sudo pacman -S mpv` | `sudo pacman -S ffmpeg` |
+
+On Windows, Scoop (`scoop install extras/mpv`) and Chocolatey (`choco install mpv`) work as well. The app finds the player even when your current terminal hasn't picked up the new `PATH` yet.
+
+### 2. Install the app
+
+The easiest way is [uv](https://docs.astral.sh/uv/), which also downloads Python if you don't have it:
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
+# Windows: winget install astral-sh.uv
+# macOS:   brew install uv
+# Linux:   curl -LsSf https://astral.sh/uv/install.sh | sh
+
+uv tool install git+https://github.com/dzeveckij/soundcloud-rpc-tui
 ```
+
+If you already use [pipx](https://pipx.pypa.io/), run `pipx install git+https://github.com/dzeveckij/soundcloud-rpc-tui` instead.
+
+If your terminal then says it can't find `soundcloud-rpc-tui`, run `uv tool update-shell` (or `pipx ensurepath`) and open a new terminal.
+
+To update, run `uv tool upgrade soundcloud-rpc-tui`. To uninstall, run `uv tool uninstall soundcloud-rpc-tui`.
 
 ## Run
 
@@ -43,7 +59,7 @@ python -m pip install -e .
 soundcloud-rpc-tui
 ```
 
-Or run `python -m soundcloud_rpc_tui`.
+On Windows, use [Windows Terminal](https://aka.ms/terminal), which comes with Windows 11. The older console window can't show the waveform and cover art properly.
 
 ## Sign in
 
@@ -52,11 +68,17 @@ Press `L`. The app uses the SoundCloud session in your browser, so your password
 1. Sign in on soundcloud.com, if you haven't already.
 2. Choose that browser in the app and select **Import session**.
 
-Firefox, Chrome, Brave, Edge, Chromium, Vivaldi, Opera, and Safari are supported. On macOS, Chromium-based browsers ask for Keychain access, and Safari needs Full Disk Access for your terminal. For any other browser, paste the `oauth_token` cookie from its developer tools, or the path to a `cookies.txt` export. Add the `oauth_refresh_token` cookie to stay signed in longer.
+Firefox, Chrome, Brave, Edge, Chromium, Vivaldi, Opera, and Safari are supported, with a few limits on each system:
+
+- **Windows:** use Firefox. Chrome, Edge, and Brave encrypt their cookies so that other apps can't read them, and they lock them while the browser is open. For those browsers, paste the token instead (see below).
+- **macOS:** Chromium-based browsers ask for Keychain access, and Safari needs Full Disk Access for your terminal.
+- **Linux:** Chromium-based browsers may ask your keyring (GNOME Keyring or KWallet) to unlock their cookies.
+
+**Pasting a token instead.** On soundcloud.com, open the developer tools (`F12`). Under **Application** (Chrome, Edge) or **Storage** (Firefox), open **Cookies** › `https://soundcloud.com` and copy the value of `oauth_token`. Paste it into the `L` dialog. Add `oauth_refresh_token` as well to stay signed in longer. You can also give the path to a `cookies.txt` export.
 
 **Staying signed in.** SoundCloud sessions renew about every hour using a single-use refresh token that your browser and this app share. The app reads your browser again first, which doesn't affect the browser at all. If the browser's session has also expired, the app renews it, and your browser may then ask you to sign in again the next time you open SoundCloud.
 
-**Your tokens** are saved in `~/.config/soundcloud-rpc-tui/auth.json`, readable only by your user, and are only ever sent to SoundCloud. **Sign out** in the `L` dialog deletes that file.
+**Your tokens** are saved in `auth.json` in the app's settings folder (see [Settings](#settings)), readable only by your user, and are only ever sent to SoundCloud. **Sign out** in the `L` dialog deletes that file.
 
 Not signing in? Set a public profile in settings (`s`) to browse its likes, playlists, and tracks. Search, Trending, Discover, and playback work without an account.
 
@@ -113,15 +135,24 @@ Press `?` in the app for this list. Most on-screen controls can also be clicked.
 
 ## Settings
 
-Settings are saved to `~/.config/soundcloud-rpc-tui/settings.json`, or under `$XDG_CONFIG_HOME` if it's set.
+Settings and your sign-in are saved in:
+
+| System | Folder |
+| --- | --- |
+| Windows | `%APPDATA%\soundcloud-rpc-tui` |
+| macOS, Linux | `~/.config/soundcloud-rpc-tui`, or `$XDG_CONFIG_HOME/soundcloud-rpc-tui` if that's set |
 
 Played tracks are added to your SoundCloud listening history, as they are on the website. Turn this off in settings if you'd rather they weren't.
 
 ## Troubleshooting
 
-**No sound, or "No audio player found."** Install `mpv` or FFmpeg, and make sure it's on your `PATH`.
+**No sound, or "No audio player found."** Install `mpv` or FFmpeg (see [Install](#install)). If you installed it somewhere unusual, add its folder to your `PATH` and open a new terminal.
 
 **"That browser isn't signed in to SoundCloud."** Sign in on soundcloud.com in that browser, then import again. If you use several profiles, the app checks each one, starting with the most recently used.
+
+**Chrome or Edge won't import on Windows.** This is expected. Use Firefox, or paste the token.
+
+**Boxes or question marks instead of the waveform.** Your terminal's font is missing block characters. Use Windows Terminal, iTerm2, or any terminal with a modern font such as Cascadia Code, Menlo, or DejaVu Sans Mono.
 
 **"Your SoundCloud session expired."** Press `L` and import your session again.
 
@@ -138,9 +169,13 @@ This app uses `api-v2.soundcloud.com`, the private API behind SoundCloud's websi
 ## Development
 
 ```bash
-python -m pip install -e '.[dev]'
-python -m pytest
+git clone https://github.com/dzeveckij/soundcloud-rpc-tui
+cd soundcloud-rpc-tui
+uv venv && uv pip install -e '.[dev]'   # or: python -m venv .venv, then pip install -e '.[dev]'
+uv run pytest
 ```
+
+You can also run the app from the checkout with `uv run soundcloud-rpc-tui` or `python -m soundcloud_rpc_tui`. GitHub Actions runs the tests on Windows, macOS, and Linux.
 
 The code lives in `src/soundcloud_rpc_tui`:
 
