@@ -391,7 +391,12 @@ def test_windows_install_locations_cover_winget_scoop_and_program_files(monkeypa
     assert str(package / "ffplay.exe") in places
     assert str(tmp_path / "Local" / "Microsoft" / "WinGet" / "Links" / "ffplay.exe") in places
     assert str(tmp_path / "scoop" / "shims" / "ffplay.exe") in places
+    monkeypatch.setenv("ChocolateyInstall", str(tmp_path / "chocolatey"))
+    choco = tmp_path / "chocolatey" / "lib" / "mpvio.install" / "tools"
+    choco.mkdir(parents=True)
+    (choco / "mpv.exe").touch()
     mpv_places = [str(path) for path in player_module._windows_install_locations("mpv")]
+    assert str(choco / "mpv.exe") in mpv_places
     assert str(tmp_path / "Program Files" / "MPV Player" / "mpv.exe") in mpv_places
 
 
@@ -458,10 +463,18 @@ def _drain(process) -> bytes:
     return received
 
 
-@pytest.mark.skipif(not player_module.find_binary("mpv"), reason="mpv isn't installed")
+@pytest.mark.skipif(
+    not player_module.find_binary("mpv") and not os.environ.get("REQUIRE_MPV"),
+    reason="mpv isn't installed",
+)
 def test_real_mpv_starts_and_answers_over_ipc():
-    """Run the installed mpv. On Windows this checks the named-pipe transport for real."""
-    backend = MpvBackend(30, player_module.find_binary("mpv"))
+    """Run the installed mpv. On Windows this checks the named-pipe transport for real.
+
+    CI sets REQUIRE_MPV, so not finding the mpv it just installed is a failure, not a skip.
+    """
+    binary = player_module.find_binary("mpv")
+    assert binary, "mpv is installed but the app can't find it"
+    backend = MpvBackend(30, binary)
     try:
         assert not backend.dead
         backend.set_volume(25)

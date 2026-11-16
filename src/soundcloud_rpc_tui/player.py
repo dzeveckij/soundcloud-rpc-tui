@@ -174,13 +174,19 @@ def _windows_install_locations(name: str) -> list[Path]:
     places += [local / "Programs" / "mpv" / executable]
     places += [root / "FFmpeg" / "bin" / executable for root in program_files]
     places += [Path(os.environ.get("SCOOP") or home / "scoop") / "shims" / executable]
-    places += [Path(os.environ.get("ChocolateyInstall") or r"C:\ProgramData\chocolatey") / "bin" / executable]
-    packages = local / "Microsoft" / "WinGet" / "Packages"
-    for pattern in (f"*/{executable}", f"*/*/{executable}", f"*/*/bin/{executable}"):
-        try:
-            places += sorted(packages.glob(pattern))
-        except OSError:
-            break
+    chocolatey = Path(os.environ.get("ChocolateyInstall") or r"C:\ProgramData\chocolatey")
+    places += [chocolatey / "bin" / executable]
+    searches = [
+        (local / "Microsoft" / "WinGet" / "Packages", (f"*/{executable}", f"*/*/{executable}", f"*/*/bin/{executable}")),
+        # Chocolatey's mpv package (mpvio.install) adds its tools folder to PATH instead of a shim.
+        (chocolatey / "lib", (f"*/tools/{executable}", f"*/tools/*/{executable}")),
+    ]
+    for root, patterns in searches:
+        for pattern in patterns:
+            try:
+                places += sorted(root.glob(pattern))
+            except OSError:
+                break
     return places
 
 
